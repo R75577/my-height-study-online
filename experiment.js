@@ -381,7 +381,7 @@ function makeImageTrial(blockLabel, imgPath) {
     const H = window.innerHeight - padT - padB;
 
     // 1) Start with exactly 40% for the image
-    let imgH = Math.max(MIN_IMG, Math.floor(H * TARGET_IMG_FRAC));
+    let imgH = Math.max(250, Math.min(Math.floor(H * 0.45), 520));
     preWrap.style.height = imgH + 'px';
 
     // 2) How much space does the form actually have now?
