@@ -361,54 +361,53 @@ function makeImageTrial(blockLabel, imgPath) {
       }, { once: true });
 
       /* ====== DYNAMIC LAYOUT: ALWAYS FIT IMAGE + 4 SCALES IN VIEW ====== */
-      (function fitOnceAndBind() {
-        const stage   = document.querySelector('.jspsych-content');
-        const preWrap = stage?.querySelector('.preamble-wrap');
-        const form    = stage?.querySelector('form');
-        if (!stage || !preWrap || !form) return;
+      /* ====== DYNAMIC LAYOUT: 40% IMAGE / 60% SCALES, NO PAGE SCROLL ====== */
+(function fitWithTargetSplit() {
+  const TARGET_IMG_FRAC = 0.40;   // 40% of usable viewport for the image
+  const SAFETY = 8;               // tiny gap to avoid clipping
+  const MIN_IMG = 100;            // don't let the image get microscopic
 
-        const computeOnce = () => {
-          const cs   = getComputedStyle(stage);
-          const padT = parseFloat(cs.paddingTop) || 0;
-          const padB = parseFloat(cs.paddingBottom) || 0;
+  const stage   = document.querySelector('.jspsych-content');
+  const preWrap = stage?.querySelector('.preamble-wrap');
+  const form    = stage?.querySelector('form');
+  if (!stage || !preWrap || !form) return;
 
-          // height the form currently wants (questions + warnings + button)
-          const formH = Math.ceil(form.getBoundingClientRect().height);
+  const compute = () => {
+    const cs   = getComputedStyle(stage);
+    const padT = parseFloat(cs.paddingTop) || 0;
+    const padB = parseFloat(cs.paddingBottom) || 0;
 
-          // initial guess for image box height
-          const SAFETY  = 8;
-          const MIN_IMG = 120;  // allow smaller if needed
-          const MAX_IMG = Math.floor(window.innerHeight * 0.60); // cap at 60% of viewport
+    // Usable viewport height inside the jsPsych stage
+    const H = window.innerHeight - padT - padB;
 
-          let avail = window.innerHeight - padT - padB - formH - SAFETY;
-          avail = Math.max(MIN_IMG, Math.min(avail, MAX_IMG));
-          preWrap.style.height = avail + 'px';
-        };
+    // 1) Start with exactly 40% for the image
+    let imgH = Math.max(MIN_IMG, Math.floor(H * TARGET_IMG_FRAC));
+    preWrap.style.height = imgH + 'px';
 
-        // If the form still overflows, keep shrinking the image a bit
-        const fitUntilNoOverflow = () => {
-          let steps = 30;
-          const step = () => {
-            const overflows = form.scrollHeight > form.clientHeight + 1;
-            if (!overflows || steps-- <= 0) return;
-            const current = parseFloat(preWrap.style.height || '0');
-            if (current > 80) preWrap.style.height = (current - 10) + 'px';
-            requestAnimationFrame(step);
-          };
-          requestAnimationFrame(step);
-        };
+    // 2) How much space does the form actually have now?
+    let formBoxH = H - imgH - SAFETY;
 
-        const run = () => { computeOnce(); fitUntilNoOverflow(); };
+    // 3) If the form still needs more room (would overflow),
+    //    shrink the image in small steps until everything fits.
+    let guard = 60; // prevents infinite loops
+    while ((form.scrollHeight > formBoxH + 1) && imgH > MIN_IMG && guard-- > 0) {
+      imgH -= 6;                                  // shrink image 6px per step
+      preWrap.style.height = imgH + 'px';
+      formBoxH = H - imgH - SAFETY;
+    }
+  };
 
-        run();
-        setTimeout(run, 0);
-        setTimeout(run, 60);
-        setTimeout(run, 200);
+  // Run now and after layout settles; bind to resizes
+  compute();
+  setTimeout(compute, 0);
+  setTimeout(compute, 60);
+  setTimeout(compute, 200);
 
-        const handler = () => run();
-        window.addEventListener('resize', handler);
-        preWrap.__resizeHandler = handler;
-      })();
+  const handler = () => compute();
+  window.addEventListener('resize', handler);
+  preWrap.__resizeHandler = handler;
+})();
+
       /* ====== END DYNAMIC LAYOUT ====== */
     },
 
