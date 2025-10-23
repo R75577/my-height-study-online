@@ -379,6 +379,9 @@ function makeImageTrial(blockLabel, imgPath) {
 
     // Usable viewport height inside the jsPsych stage
     const H = window.innerHeight - padT - padB;
+// If viewport is short (e.g., small laptop), bias image a bit larger
+const isSmallScreen = window.innerHeight < 800;
+const TARGET_IMG_FRAC = isSmallScreen ? 0.48 : 0.40;
 
     // 1) Start with exactly 40% for the image
     let imgH = Math.max(250, Math.min(Math.floor(H * 0.45), 520));
