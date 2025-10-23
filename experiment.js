@@ -45,9 +45,9 @@ function getParam(name) {
 }
 
 // Build filenames from your scheme: F.F.1_1.2.png, M.F.6_3.png, etc.
-const NUM_FACES_PER_SEX = 6;
-const HEIGHT_CODES = ['1','2','3'];    // 1=Tall, 2=Average, 3=Short
-const ATTR_CODES   = ['', '.2', '.3'];  // ''=Attractive, .2=Less, .3=Very unattractive
+const NUM_FACES_PER_SEX = 6;              // (your current testing setting)
+const HEIGHT_CODES = ['1','2','3'];       // 1=Tall, 2=Average, 3=Short
+const ATTR_CODES   = ['', '.2', '.3'];    // ''=Attractive, .2=Less, .3=Very unattractive
 
 function buildFiles(sexTag /* "M.F" or "F.F" */) {
   const files = [];
@@ -83,6 +83,17 @@ function parseMeta(imgPath) {
   meta.attract_code = a || null;
   meta.attract_label = (a==='') ? 'Attractive' : (a==='2') ? 'LessAttractive' : 'VeryUnattractive';
   return meta;
+}
+
+/* ========= INSTRUCTION-PAGE CENTERING HELPERS ========= */
+
+function enterInstructionsMode() {
+  const el = document.querySelector('.jspsych-content');
+  if (el) el.classList.add('instructions-mode');
+}
+function exitInstructionsMode() {
+  const el = document.querySelector('.jspsych-content');
+  if (el) el.classList.remove('instructions-mode');
 }
 
 /* ========= FIREBASE INIT & AUTH ========= */
@@ -134,7 +145,28 @@ const preload = {
 
 /* ========= SCREENS ========= */
 
-const fullscreen = { type: jsPsychFullscreen, fullscreen_mode: true };
+/* ========= FULLSCREEN SCREEN ========= */
+const fullscreen = {
+  type: jsPsychFullscreen,
+  fullscreen_mode: true,
+  message: `
+    <div class="fs-message">
+      <p>The experiment will switch to full-screen mode when you press the button below.</p>
+      <p><strong>Please make sure to remain in full-screen mode for the entirety of the study.</strong></p>
+    </div>
+  `,
+  button_label: "Continue",
+  on_load: () => {
+    // Center this page and keep the button visible under the text
+    const el = document.querySelector('.jspsych-content');
+    if (el) el.classList.add('fullscreen-mode');
+  },
+  on_finish: () => {
+    // Remove centering class so it doesn't affect other trials
+    const el = document.querySelector('.jspsych-content');
+    if (el) el.classList.remove('fullscreen-mode');
+  }
+};
 
 const welcome = {
   type: jsPsychInstructions,
@@ -147,7 +179,9 @@ const welcome = {
      </div>`
   ],
   show_clickable_nav: true,
-  button_label_next: 'Continue'
+  button_label_next: 'Continue',
+  on_load: enterInstructionsMode,
+  on_finish: exitInstructionsMode
 };
 
 const instructions = {
@@ -157,12 +191,14 @@ const instructions = {
        <h2>Instructions</h2>
        <p><strong>In this experiment, we will ask you to make judgments about a series of male and female images.</strong></p>
        <p>On each screen, you will see one image and four questions. <strong>Please answer the questions based on your perception of the image.</strong></p>
-       <p>Use the 1–7 scale for each question. <strong>The scale is pre-set to 4 by default. However, you must still click or tap on your chosen response — including 4 — to record your answer<strong>. <p>
+       <p>Use the 1–7 scale for each question. <strong>The scale is pre-set to 4 by default. However, you must still click or tap on your chosen response — including 4 — to record your answer</strong>.</p>
        <p>All four answers are required.</p>
      </div>`
   ],
   show_clickable_nav: true,
-  button_label_next: 'Start'
+  button_label_next: 'Start',
+  on_load: enterInstructionsMode,
+  on_finish: exitInstructionsMode
 };
 
 function blockIntroHTML(label) {
@@ -180,7 +216,9 @@ function makeBlockIntro(label){
     type: jsPsychInstructions,
     pages: [ blockIntroHTML(label) ],
     show_clickable_nav: true,
-    button_label_next: 'Continue'
+    button_label_next: 'Continue',
+    on_load: enterInstructionsMode,
+    on_finish: exitInstructionsMode
   };
 }
 
@@ -231,6 +269,9 @@ function makeImageTrial(blockLabel, imgPath) {
         document.querySelector('form button[type="submit"]');
 
       if (!btn) return;
+
+      // ensure we exit instructions centering on rating trials
+      exitInstructionsMode();
 
       btn.disabled = true;
 
@@ -318,6 +359,57 @@ function makeImageTrial(blockLabel, imgPath) {
           Q4: Math.round(interact.Q4)
         });
       }, { once: true });
+
+      /* ====== DYNAMIC LAYOUT: ALWAYS FIT IMAGE + 4 SCALES IN VIEW ====== */
+      (function fitOnceAndBind() {
+        const stage   = document.querySelector('.jspsych-content');
+        const preWrap = stage?.querySelector('.preamble-wrap');
+        const form    = stage?.querySelector('form');
+        if (!stage || !preWrap || !form) return;
+
+        const computeOnce = () => {
+          const cs   = getComputedStyle(stage);
+          const padT = parseFloat(cs.paddingTop) || 0;
+          const padB = parseFloat(cs.paddingBottom) || 0;
+
+          // height the form currently wants (questions + warnings + button)
+          const formH = Math.ceil(form.getBoundingClientRect().height);
+
+          // initial guess for image box height
+          const SAFETY  = 8;
+          const MIN_IMG = 120;  // allow smaller if needed
+          const MAX_IMG = Math.floor(window.innerHeight * 0.60); // cap at 60% of viewport
+
+          let avail = window.innerHeight - padT - padB - formH - SAFETY;
+          avail = Math.max(MIN_IMG, Math.min(avail, MAX_IMG));
+          preWrap.style.height = avail + 'px';
+        };
+
+        // If the form still overflows, keep shrinking the image a bit
+        const fitUntilNoOverflow = () => {
+          let steps = 30;
+          const step = () => {
+            const overflows = form.scrollHeight > form.clientHeight + 1;
+            if (!overflows || steps-- <= 0) return;
+            const current = parseFloat(preWrap.style.height || '0');
+            if (current > 80) preWrap.style.height = (current - 10) + 'px';
+            requestAnimationFrame(step);
+          };
+          requestAnimationFrame(step);
+        };
+
+        const run = () => { computeOnce(); fitUntilNoOverflow(); };
+
+        run();
+        setTimeout(run, 0);
+        setTimeout(run, 60);
+        setTimeout(run, 200);
+
+        const handler = () => run();
+        window.addEventListener('resize', handler);
+        preWrap.__resizeHandler = handler;
+      })();
+      /* ====== END DYNAMIC LAYOUT ====== */
     },
 
     // Built-in page RT is saved as data.rt
@@ -331,6 +423,13 @@ function makeImageTrial(blockLabel, imgPath) {
       } catch (_) {
         data.Q1_interact_ms = data.Q2_interact_ms =
         data.Q3_interact_ms = data.Q4_interact_ms = null;
+      }
+
+      // Clean up the resize listener we attached in on_load (prevents leaks)
+      const preWrap = document.querySelector('.preamble-wrap');
+      if (preWrap && preWrap.__resizeHandler) {
+        window.removeEventListener('resize', preWrap.__resizeHandler);
+        delete preWrap.__resizeHandler;
       }
     }
   };
@@ -404,7 +503,9 @@ const thankYou = {
   on_load: () => {
     // Let participants close the tab without the leave-warning now
     try { window.removeEventListener('beforeunload', beforeUnloadHandler); } catch(_) {}
-  }
+    enterInstructionsMode();  // center this page too
+  },
+  on_finish: exitInstructionsMode
 };
 
 /* ========= TIMELINE ========= */

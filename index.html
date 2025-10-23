@@ -11,62 +11,130 @@
 
   <!-- Layout + slider styling -->
   <style>
-  html, body { height: 100%; margin: 0; }
-  .jspsych-content { max-width: 1000px; padding: 6px 14px; }
+  /* Lock the experiment to one viewport and stop page-level scrolling */
+  html, body { height: 100svh; margin: 0; overflow: hidden; }
 
-  /* Big image, with clear separation before scales */
-  .preamble-wrap { display: flex; justify-content: center; margin-bottom: 28px; }
+  /* Stage = vertical stack: image (top) + form (bottom) */
+  .jspsych-content {
+    height: 100svh;
+    max-height: 100svh;
+    box-sizing: border-box;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  /* The image sits inside this box. JS will set its height in px. */
+  .preamble-wrap {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+  }
+
   .stimulus-image {
     max-width: 100%;
-    height: auto;
-    max-height: 42vh;
+    max-height: 100% !important;
+    width: auto; height: auto;
     object-fit: contain;
     border-radius: 8px;
-  }
-  .center { text-align: center; }
-
-  /* Clear divider above the first scale group */
-  .q-block {
-    border-top: 2px solid #d5d5d5;
-    padding-top: 16px;
-    margin-top: 4px;
+    display: block;
   }
 
-  /* Question block spacing */
-  .q { margin: 14px 0; }
-  .q-title {
-    margin: 0 0 6px;
-    font-weight: 700;
-    font-size: 18px; /* larger question text */
-    text-align: center;
+  /* Form (all 4 scales + messages + button) takes remaining space */
+  .jspsych-content form {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    overflow: auto;
   }
 
-  /* Slider row */
-  .slider-row { max-width: 820px; margin: 0 auto 10px; }
-  .slider { width: 100%; }  /* native browser styling (reverts the thicker custom look) */
+  /* Cosmetic details for the question area */
+  .q-block { border-top: 2px solid #d5d5d5; padding-top: 10px; }
+  .q { margin: 8px 0; }
+  .q-title { margin: 0 0 4px; font-weight: 600; text-align: center;
+             font-size: clamp(12px, 1.7svh, 17px); }
 
-  /* === Tick labels === */
+  /* ===== Slider appearance tuning ===== */
+  .slider-row {
+    max-width: 900px;
+    margin: 0 auto 10px;
+  }
+  .slider {
+    width: 98%;
+    height: 1.2em;
+  }
   .slider-ticks {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     gap: 0;
     margin-top: 6px;
-    font-size: 16px;      /* <-- numbers stay the same size */
+    font-size: clamp(12px, 2.1svh, 18px);
     line-height: 1.2;
   }
-  .slider-ticks span { text-align: center; }
+  .slider-ticks span {
+    text-align: center;
+    font-weight: 400; /* normal weight numbers */
+  }
   .slider-ticks small {
     display: block;
-    font-size: 18px;      /* <-- slightly bigger “Not at all” / “Very” */
-    font-weight: 400;
+    font-size: clamp(12px, 1.8svh, 17px);
+    font-weight: 500;
   }
 
-  /* Slightly tighter on short displays */
-  @media (max-height: 820px) {
-    .q { margin: 10px 0; }
-    .q-title { margin-bottom: 4px; }
+  body { font-size: clamp(12px, 4.0svh, 18px); }
+
+  /* ===== Center instruction/intro/thank-you pages ONLY (class toggled in JS) ===== */
+  .jspsych-content.instructions-mode {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;     /* vertical centering */
+    align-items: center;         /* horizontal centering */
+    min-height: 100svh;
+    box-sizing: border-box;
+    padding: 40px 20px 90px;     /* bottom room for buttons */
+    overflow: hidden;
+    text-align: center;
   }
-</style>
+  .jspsych-content.instructions-mode .jspsych-instructions,
+  .jspsych-content.instructions-mode .center {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  .jspsych-content.instructions-mode .jspsych-instructions-nav,
+  .jspsych-content.instructions-mode .jspsych-btn {
+    position: static !important;
+    align-self: center;
+    margin-top: 20px;
+    margin-bottom: 0;
+  }
+  .jspsych-content.instructions-mode h2 { margin-bottom: 12px; }
+  .jspsych-content.instructions-mode p  { margin: 10px auto; line-height: 1.5; }
+/* Center ONLY the fullscreen page and keep its button in view */
+.jspsych-content.fullscreen-mode {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;   /* vertical center */
+  align-items: center;       /* horizontal center */
+  min-height: 100svh;
+  box-sizing: border-box;
+  padding: 40px 20px 90px;   /* leave room for the button */
+  text-align: center;
+  overflow: hidden;
+}
+
+/* Tidy up the fullscreen message text */
+.fs-message {
+  max-width: 800px;
+  margin: 0 auto;
+  font-size: clamp(14px, 2svh, 18px);
+  line-height: 1.5;
+}
+  </style>
 </head>
 <body>
 
@@ -74,11 +142,8 @@
   <script src="./jspsych.js"></script>
   <script src="./plugins/plugin-instructions.js"></script>
   <script src="./plugins/plugin-preload.js"></script>
-  <!-- We use sliders inside a form -->
   <script src="./plugins/plugin-survey-html-form.js"></script>
-  <!-- Optional: fullscreen -->
   <script src="./plugins/plugin-fullscreen.js"></script>
-
 
   <!-- Firebase (compat SDKs so they work in plain script tags) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -92,7 +157,7 @@
       authDomain: "my-height-study.firebaseapp.com",
       databaseURL: "https://my-height-study-default-rtdb.firebaseio.com",
       projectId: "my-height-study",
-      storageBucket: "my-height-study.appspot.com",   
+      storageBucket: "my-height-study.appspot.com",
       messagingSenderId: "623828095541",
       appId: "1:623828095541:web:a9bf0e779534230ab7977c"
     };
