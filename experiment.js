@@ -44,10 +44,10 @@ function getParam(name) {
   return m ? decodeURIComponent(m) : null;
 }
 
-// Build filenames from your scheme: F.F.1_1.2.png, M.F.6_3.png, etc.
-const NUM_FACES_PER_SEX = 6;              // (your current testing setting)
-const HEIGHT_CODES = ['1','2','3'];       // 1=Tall, 2=Average, 3=Short
-const ATTR_CODES   = ['', '.2', '.3'];    // ''=Attractive, .2=Less, .3=Very unattractive
+// Build filenames from your scheme (TEMP: 1 face per sex while testing)
+const NUM_FACES_PER_SEX = 6;
+const HEIGHT_CODES = ['1','2','3'];    // 1=Tall, 2=Average, 3=Short
+const ATTR_CODES   = ['', '.2', '.3'];  // ''=Attractive, .2=Less, .3=Very unattractive
 
 function buildFiles(sexTag /* "M.F" or "F.F" */) {
   const files = [];
@@ -132,7 +132,6 @@ const projectId     = getParam('projectId')     || '';
 jsPsych.data.addProperties({ participant_id, participantId, assignmentId, projectId });
 
 /* ========= PREVENT ACCIDENTAL EXITS ========= */
-// Keep a reference so we can remove this warning on the Thank-You page
 const beforeUnloadHandler = (e) => { e.preventDefault(); e.returnValue = ''; };
 window.addEventListener('beforeunload', beforeUnloadHandler);
 
@@ -143,30 +142,28 @@ const preload = {
   images: [...malePaths, ...femalePaths]
 };
 
-/* ========= SCREENS ========= */
-
 /* ========= FULLSCREEN SCREEN ========= */
 const fullscreen = {
   type: jsPsychFullscreen,
   fullscreen_mode: true,
   message: `
     <div class="fs-message">
-      <p>The experiment will switch to full-screen mode when you press the button below.</p>
+      <p>The experiment will switch to full screen mode when you press the button below.</p>
       <p><strong>Please make sure to remain in full-screen mode for the entirety of the study.</strong></p>
     </div>
   `,
   button_label: "Continue",
   on_load: () => {
-    // Center this page and keep the button visible under the text
     const el = document.querySelector('.jspsych-content');
     if (el) el.classList.add('fullscreen-mode');
   },
   on_finish: () => {
-    // Remove centering class so it doesn't affect other trials
     const el = document.querySelector('.jspsych-content');
     if (el) el.classList.remove('fullscreen-mode');
   }
 };
+
+/* ========= SCREENS ========= */
 
 const welcome = {
   type: jsPsychInstructions,
@@ -262,15 +259,13 @@ function makeImageTrial(blockLabel, imgPath) {
       ...parseMeta(imgPath)
     },
 
-    // Require interacting with every slider before enabling Continue.
     on_load: () => {
       const btn =
         document.querySelector('#jspsych-survey-html-form-next') ||
         document.querySelector('form button[type="submit"]');
-
       if (!btn) return;
 
-      // ensure we exit instructions centering on rating trials
+      // make sure instruction centering is off for rating trials
       exitInstructionsMode();
 
       btn.disabled = true;
@@ -292,26 +287,12 @@ function makeImageTrial(blockLabel, imgPath) {
         msg.style.display = ok ? 'none' : 'block';
       }
 
-      // === Active-manipulation helpers ===
-      function startActive(name){
-        // stop any other active slider to avoid overlap
-        stopAll();
-        if (activeSince[name] == null) {
-          activeSince[name] = performance.now();
-        }
-      }
-      function stopActive(name){
-        if (activeSince[name] != null) {
-          interact[name] += performance.now() - activeSince[name];
-          activeSince[name] = null;
-        }
-      }
+      function startActive(name){ stopAll(); if (activeSince[name] == null) activeSince[name] = performance.now(); }
+      function stopActive(name){ if (activeSince[name] != null){ interact[name] += performance.now() - activeSince[name]; activeSince[name] = null; } }
       function stopAll(){ ['Q1','Q2','Q3','Q4'].forEach(stopActive); }
 
-      // Must touch each slider once
       sliders.forEach(s => {
         const mark = () => { s.dataset.touched = '1'; checkAllTouched(); };
-
         s.addEventListener('input',       mark, { once: true });
         s.addEventListener('change',      mark, { once: true });
         s.addEventListener('pointerdown', mark, { once: true });
@@ -321,21 +302,15 @@ function makeImageTrial(blockLabel, imgPath) {
         s.addEventListener('keydown',     mark, { once: true });
       });
 
-      // Bind timing events per slider (engage → release)
       sliders.forEach(s => {
-        const name = s.name; // "Q1".."Q4"
-
+        const name = s.name;
         const onStart = () => { startActive(name); };
         const onStop  = ()  => { stopActive(name); };
-
-        // Engage events (mouse/touch/keyboard/focus)
         s.addEventListener('pointerdown', onStart);
         s.addEventListener('mousedown',   onStart);
         s.addEventListener('touchstart',  onStart, { passive: true });
         s.addEventListener('keydown',     onStart);
         s.addEventListener('focus',       onStart);
-
-        // Release/leave events
         s.addEventListener('pointerup',   onStop);
         s.addEventListener('mouseup',     onStop);
         s.addEventListener('touchend',    onStop);
@@ -344,12 +319,10 @@ function makeImageTrial(blockLabel, imgPath) {
         s.addEventListener('mouseleave',  onStop);
       });
 
-      // If tab hides, stop timers
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) ['Q1','Q2','Q3','Q4'].forEach(stopActive);
       });
 
-      // On submit, finalize timers and stash for on_finish
       btn.addEventListener('click', () => {
         ['Q1','Q2','Q3','Q4'].forEach(stopActive);
         document.body.dataset.interactTimes = JSON.stringify({
@@ -360,58 +333,74 @@ function makeImageTrial(blockLabel, imgPath) {
         });
       }, { once: true });
 
-      /* ====== DYNAMIC LAYOUT: ALWAYS FIT IMAGE + 4 SCALES IN VIEW ====== */
-      /* ====== DYNAMIC LAYOUT: 40% IMAGE / 60% SCALES, NO PAGE SCROLL ====== */
-(function fitWithTargetSplit() {
-  const TARGET_IMG_FRAC = 0.40;   // 40% of usable viewport for the image
-  const SAFETY = 8;               // tiny gap to avoid clipping
-  const MIN_IMG = 100;            // don't let the image get microscopic
+      /* ====== HARD 40% IMAGE / 60% SCALES + AUTO SCALE-FIT FOR FORM ====== */
+      (function fitWithStrictSplitAndFormScale() {
+        const stage   = document.querySelector('.jspsych-content');
+        const preWrap = stage?.querySelector('.preamble-wrap');
+        const form    = stage?.querySelector('form');
+        if (!stage || !preWrap || !form) return;
 
-  const stage   = document.querySelector('.jspsych-content');
-  const preWrap = stage?.querySelector('.preamble-wrap');
-  const form    = stage?.querySelector('form');
-  if (!stage || !preWrap || !form) return;
+        // create a wrapper around the form's children so we can scale the content cleanly
+        let inner = form.querySelector('.form-scale-wrap');
+        if (!inner) {
+          inner = document.createElement('div');
+          inner.className = 'form-scale-wrap';
+          // move all children into the wrapper
+          while (form.firstChild) inner.appendChild(form.firstChild);
+          form.appendChild(inner);
+        }
+        inner.style.transformOrigin = 'top center';
+        inner.style.width = '100%';
 
-  const compute = () => {
-    const cs   = getComputedStyle(stage);
-    const padT = parseFloat(cs.paddingTop) || 0;
-    const padB = parseFloat(cs.paddingBottom) || 0;
+        const SAFETY = 8; // small gap to avoid clipping at the bottom
 
-    // Usable viewport height inside the jsPsych stage
-    const H = window.innerHeight - padT - padB;
-// If viewport is short (e.g., small laptop), bias image a bit larger
-const isSmallScreen = window.innerHeight < 800;
-const TARGET_IMG_FRAC = isSmallScreen ? 0.48 : 0.40;
+        const compute = () => {
+          const cs   = getComputedStyle(stage);
+          const padT = parseFloat(cs.paddingTop) || 0;
+          const padB = parseFloat(cs.paddingBottom) || 0;
 
-    // 1) Start with exactly 40% for the image
-    let imgH = Math.max(250, Math.min(Math.floor(H * 0.45), 520));
-    preWrap.style.height = imgH + 'px';
+          const H = window.innerHeight - padT - padB;
 
-    // 2) How much space does the form actually have now?
-    let formBoxH = H - imgH - SAFETY;
+          // 1) Fix the image container to exactly 40% of the usable viewport
+          const imgH = Math.floor(H * 0.40);
+          preWrap.style.height = imgH + 'px';
 
-    // 3) If the form still needs more room (would overflow),
-    //    shrink the image in small steps until everything fits.
-    let guard = 60; // prevents infinite loops
-    while ((form.scrollHeight > formBoxH + 1) && imgH > MIN_IMG && guard-- > 0) {
-      imgH -= 6;                                  // shrink image 6px per step
-      preWrap.style.height = imgH + 'px';
-      formBoxH = H - imgH - SAFETY;
-    }
-  };
+          // 2) The form gets the remaining 60% (minus a tiny safety)
+          const formBoxH = H - imgH - SAFETY;
 
-  // Run now and after layout settles; bind to resizes
-  compute();
-  setTimeout(compute, 0);
-  setTimeout(compute, 60);
-  setTimeout(compute, 200);
+          // 3) Measure the *natural* height of the form content (unscaled)
+          //    Reset any previous transform first
+          inner.style.transform = 'scale(1)';
+          // force a reflow
+          const naturalH = inner.getBoundingClientRect().height;
 
-  const handler = () => compute();
-  window.addEventListener('resize', handler);
-  preWrap.__resizeHandler = handler;
-})();
+          // 4) If content is taller than the 60% box, scale it down to fit
+          let scale = 1;
+          if (naturalH > formBoxH) {
+            scale = formBoxH / naturalH;
+            // keep a floor so text remains readable; adjust if you want smaller
+            const MIN_SCALE = 0.82;
+            scale = Math.max(MIN_SCALE, scale);
+          }
+          inner.style.transform = `scale(${scale})`;
 
-      /* ====== END DYNAMIC LAYOUT ====== */
+          // When we scale down, visually it fits, but the container still "thinks"
+          // the content is taller. Prevent scrollbars/clipping:
+          form.style.overflow = 'hidden';
+          // give the form enough internal height so the scaled content is fully visible
+          form.style.height = formBoxH + 'px';
+        };
+
+        compute();
+        setTimeout(compute, 0);
+        setTimeout(compute, 60);
+        setTimeout(compute, 200);
+
+        const handler = () => compute();
+        window.addEventListener('resize', handler);
+        preWrap.__resizeHandler = handler;
+      })();
+      /* ====== END STRICT SPLIT + FORM SCALE ====== */
     },
 
     // Built-in page RT is saved as data.rt
@@ -482,7 +471,7 @@ const saveGate = {
 
 const thankYou = {
   type: jsPsychInstructions,
-  show_clickable_nav: false,  // <-- no Next/Finish buttons
+  show_clickable_nav: false,
   pages: [
     `<div class="center" style="max-width:800px;margin:0 auto;">
        <h2>Thank you!</h2>
@@ -503,9 +492,8 @@ const thankYou = {
      </div>`
   ],
   on_load: () => {
-    // Let participants close the tab without the leave-warning now
     try { window.removeEventListener('beforeunload', beforeUnloadHandler); } catch(_) {}
-    enterInstructionsMode();  // center this page too
+    enterInstructionsMode();  // center thank-you as well
   },
   on_finish: exitInstructionsMode
 };
@@ -517,7 +505,7 @@ timeline.push(fullscreen);
 timeline.push(preload, welcome, instructions);
 timeline.push(blocks[0].intro, ...blocks[0].trials);
 timeline.push(blocks[1].intro, ...blocks[1].trials);
-timeline.push(saveGate, thankYou);   // <— save first, then show link
+timeline.push(saveGate, thankYou);
 
 /* ========= SAVE LOGIC ========= */
 

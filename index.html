@@ -27,7 +27,7 @@
     margin: 0 auto;
   }
 
-  /* The image sits inside this box. JS will set its height in px. */
+  /* The image sits inside this box (height set by JS to 40% of viewport). */
   .preamble-wrap {
     width: 100%;
     display: flex;
@@ -45,13 +45,12 @@
     display: block;
   }
 
-  /* Form (all 4 scales + messages + button) takes remaining space */
+  /* Form takes remaining space; we prevent scroll and let JS scale content */
   .jspsych-content form {
     flex: 1 1 auto;
     min-height: 0;
     width: 100%;
-   /* overflow: auto;   <-- remove this */
-  overflow: hidden;     /* <-- use this so the page never scrolls */
+    overflow: hidden;   /* IMPORTANT: no internal scroll; JS scales instead */
   }
 
   /* Cosmetic details for the question area */
@@ -79,7 +78,7 @@
   }
   .slider-ticks span {
     text-align: center;
-    font-weight: 400; /* normal weight numbers */
+    font-weight: 400; /* normal numbers */
   }
   .slider-ticks small {
     display: block;
@@ -93,11 +92,11 @@
   .jspsych-content.instructions-mode {
     display: flex;
     flex-direction: column;
-    justify-content: center;     /* vertical centering */
-    align-items: center;         /* horizontal centering */
+    justify-content: center;
+    align-items: center;
     min-height: 100svh;
     box-sizing: border-box;
-    padding: 40px 20px 90px;     /* bottom room for buttons */
+    padding: 40px 20px 90px;
     overflow: hidden;
     text-align: center;
   }
@@ -115,26 +114,25 @@
   }
   .jspsych-content.instructions-mode h2 { margin-bottom: 12px; }
   .jspsych-content.instructions-mode p  { margin: 10px auto; line-height: 1.5; }
-/* Center ONLY the fullscreen page and keep its button in view */
-.jspsych-content.fullscreen-mode {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;   /* vertical center */
-  align-items: center;       /* horizontal center */
-  min-height: 100svh;
-  box-sizing: border-box;
-  padding: 40px 20px 90px;   /* leave room for the button */
-  text-align: center;
-  overflow: hidden;
-}
 
-/* Tidy up the fullscreen message text */
-.fs-message {
-  max-width: 800px;
-  margin: 0 auto;
-  font-size: clamp(14px, 2svh, 18px);
-  line-height: 1.5;
-}
+  /* Center ONLY the fullscreen page */
+  .jspsych-content.fullscreen-mode {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100svh;
+    box-sizing: border-box;
+    padding: 40px 20px 90px;
+    text-align: center;
+    overflow: hidden;
+  }
+  .fs-message {
+    max-width: 800px;
+    margin: 0 auto;
+    font-size: clamp(14px, 2svh, 18px);
+    line-height: 1.5;
+  }
   </style>
 </head>
 <body>
