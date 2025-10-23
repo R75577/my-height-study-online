@@ -45,7 +45,7 @@ function getParam(name) {
 }
 
 // Build filenames from your scheme (TEMP: 1 face per sex while testing)
-const NUM_FACES_PER_SEX = 1;
+const NUM_FACES_PER_SEX = 6;
 const HEIGHT_CODES = ['1','2','3'];    // 1=Tall, 2=Average, 3=Short
 const ATTR_CODES   = ['', '.2', '.3'];  // ''=Attractive, .2=Less, .3=Very unattractive
 
