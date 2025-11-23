@@ -56,18 +56,24 @@
   /* Cosmetic details for the question area */
   .q-block { border-top: 2px solid #d5d5d5; padding-top: 10px; }
   .q { margin: 8px 0; }
-  .q-title { margin: 0 0 4px; font-weight: 600; text-align: center;
-             font-size: clamp(12px, 1.7svh, 17px); }
+  .q-title {
+    margin: 0 0 4px;
+    font-weight: 600;
+    text-align: center;
+    font-size: clamp(12px, 1.7svh, 17px);
+  }
 
   /* ===== Slider appearance tuning ===== */
   .slider-row {
     max-width: 900px;
     margin: 0 auto 10px;
   }
+
   .slider {
     width: 98%;
     height: 1.2em;
   }
+
   .slider-ticks {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -76,10 +82,12 @@
     font-size: clamp(12px, 2.1svh, 18px);
     line-height: 1.2;
   }
+
   .slider-ticks span {
     text-align: center;
     font-weight: 400; /* normal numbers */
   }
+
   .slider-ticks small {
     display: block;
     font-size: clamp(12px, 1.8svh, 17px);
@@ -100,11 +108,13 @@
     overflow: hidden;
     text-align: center;
   }
+
   .jspsych-content.instructions-mode .jspsych-instructions,
   .jspsych-content.instructions-mode .center {
     max-width: 800px;
     margin: 0 auto;
   }
+
   .jspsych-content.instructions-mode .jspsych-instructions-nav,
   .jspsych-content.instructions-mode .jspsych-btn {
     position: static !important;
@@ -112,6 +122,7 @@
     margin-top: 20px;
     margin-bottom: 0;
   }
+
   .jspsych-content.instructions-mode h2 { margin-bottom: 12px; }
   .jspsych-content.instructions-mode p  { margin: 10px auto; line-height: 1.5; }
 
@@ -127,11 +138,27 @@
     text-align: center;
     overflow: hidden;
   }
+
   .fs-message {
     max-width: 800px;
     margin: 0 auto;
     font-size: clamp(14px, 2svh, 18px);
     line-height: 1.5;
+  }
+
+  /* ===== Slider visual feedback only (no change to questions) ===== */
+
+  /* Default: slider looks pale / inactive */
+  .slider {
+    accent-color: #c0c0c0;   /* light grey track + thumb */
+    opacity: 0.5;
+    transition: all 0.15s ease;
+  }
+
+  /* After participant has used the slider at least once */
+  .slider.touched {
+    accent-color: #000000;   /* strong dark track + thumb */
+    opacity: 1;
   }
   </style>
 </head>

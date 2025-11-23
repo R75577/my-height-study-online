@@ -279,7 +279,10 @@ function makeImageTrial(blockLabel, imgPath) {
       btn.parentElement.insertBefore(msg, btn);
 
       const sliders = Array.from(document.querySelectorAll('input[type="range"]'));
-      sliders.forEach(s => { s.dataset.touched = '0'; });
+      sliders.forEach(s => {
+        s.dataset.touched = '0';
+        s.classList.remove('touched');   // reset visual state each trial
+      });
 
       function checkAllTouched() {
         const ok = sliders.every(s => s.dataset.touched === '1');
@@ -287,21 +290,31 @@ function makeImageTrial(blockLabel, imgPath) {
         msg.style.display = ok ? 'none' : 'block';
       }
 
+      // ==== Active manipulation timers ====
       function startActive(name){ stopAll(); if (activeSince[name] == null) activeSince[name] = performance.now(); }
       function stopActive(name){ if (activeSince[name] != null){ interact[name] += performance.now() - activeSince[name]; activeSince[name] = null; } }
       function stopAll(){ ['Q1','Q2','Q3','Q4'].forEach(stopActive); }
 
+      // === Mark slider as used + add .touched class ===
       sliders.forEach(s => {
-        const mark = () => { s.dataset.touched = '1'; checkAllTouched(); };
-        s.addEventListener('input',       mark, { once: true });
-        s.addEventListener('change',      mark, { once: true });
-        s.addEventListener('pointerdown', mark, { once: true });
-        s.addEventListener('mousedown',   mark, { once: true });
-        s.addEventListener('touchstart',  mark, { once: true });
-        s.addEventListener('focus',       mark, { once: true });
-        s.addEventListener('keydown',     mark, { once: true });
+        const markUsed = () => {
+          if (s.dataset.touched === '1') return;  // only once per slider
+          s.dataset.touched = '1';
+          s.classList.add('touched');             // visual change
+          checkAllTouched();
+        };
+
+        // any first interaction counts as "used"
+        s.addEventListener('input',       markUsed, { once: true });
+        s.addEventListener('change',      markUsed, { once: true });
+        s.addEventListener('pointerdown', markUsed, { once: true });
+        s.addEventListener('mousedown',   markUsed, { once: true });
+        s.addEventListener('touchstart',  markUsed, { once: true });
+        s.addEventListener('focus',       markUsed, { once: true });
+        s.addEventListener('keydown',     markUsed, { once: true });
       });
 
+      // ==== keep your active-time tracking ====
       sliders.forEach(s => {
         const name = s.name;
         const onStart = () => { startActive(name); };
