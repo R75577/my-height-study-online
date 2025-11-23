@@ -440,9 +440,13 @@ function makeImageTrial(blockLabel, imgPath) {
 }
 
 function makeBlockTrials(label, paths) {
-  const trials = paths.map(p => makeImageTrial(label, p));
-  return jsPsych.randomization.shuffle(trials); // randomize within block
+  // Make a shuffled *copy* of the 54 image paths for this block
+  const shuffledPaths = jsPsych.randomization.shuffle([...paths]);
+
+  // Create one trial per image, in that random order
+  return shuffledPaths.map(p => makeImageTrial(label, p));
 }
+
 
 /* ========= BLOCKS & TIMELINE ========= */
 
